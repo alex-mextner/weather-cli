@@ -1,0 +1,9 @@
+node_modules/
+.claude/
+.codex/
+.haft/
+.serena/
+*.rig-bak-*
+coverage/
+.DS_Store
+.worktrees/

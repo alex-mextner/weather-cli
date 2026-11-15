@@ -1,0 +1,479 @@
+{
+  "place": {
+    "lat": 44.8,
+    "lon": 20.48,
+    "tz": "Europe/Belgrade"
+  },
+  "fetchedAt": 1794256800000,
+  "current": {
+    "time": 1794256800000,
+    "temp": 8.3,
+    "condition": "rain",
+    "precip": 1.2,
+    "feels": 3.1,
+    "humidity": 93,
+    "wind": 10.5,
+    "gust": 15
+  },
+  "hourly": [
+    {
+      "time": 1794250800000,
+      "temp": 8.3,
+      "condition": "rain",
+      "precip": 1.2,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794254400000,
+      "temp": 8.3,
+      "condition": "rain",
+      "precip": 1.2,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794258000000,
+      "temp": 8.3,
+      "condition": "rain",
+      "precip": 1.2,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794261600000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794265200000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794268800000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794272400000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794276000000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794279600000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794283200000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794286800000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794290400000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794294000000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794297600000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794301200000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794304800000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794308400000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794312000000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794315600000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794319200000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794322800000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794326400000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794330000000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794333600000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794337200000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794340800000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794344400000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794348000000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794351600000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794355200000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794358800000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794362400000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794366000000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794369600000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794373200000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794376800000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794380400000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794384000000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794387600000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794391200000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794394800000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794398400000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794402000000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794405600000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794409200000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794412800000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794416400000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794420000000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    },
+    {
+      "time": 1794423600000,
+      "temp": 8.3,
+      "condition": "cloudy",
+      "precip": 0,
+      "wind": 10,
+      "gust": 15
+    }
+  ],
+  "daily": [
+    {
+      "date": "2026-11-09",
+      "min": 5,
+      "max": 10,
+      "condition": "cloudy",
+      "precip": 0,
+      "snow": 0
+    },
+    {
+      "date": "2026-11-10",
+      "min": 6,
+      "max": 11,
+      "condition": "cloudy",
+      "precip": 0.4,
+      "snow": 0
+    },
+    {
+      "date": "2026-11-11",
+      "min": 5,
+      "max": 10,
+      "condition": "cloudy",
+      "precip": 0,
+      "snow": 0
+    },
+    {
+      "date": "2026-11-12",
+      "min": 5,
+      "max": 10,
+      "condition": "cloudy",
+      "precip": 0,
+      "snow": 0
+    },
+    {
+      "date": "2026-11-13",
+      "min": 5,
+      "max": 10,
+      "condition": "cloudy",
+      "precip": 0,
+      "snow": 0
+    },
+    {
+      "date": "2026-11-14",
+      "min": 5,
+      "max": 10,
+      "condition": "cloudy",
+      "precip": 0,
+      "snow": 0
+    },
+    {
+      "date": "2026-11-15",
+      "min": 5,
+      "max": 10,
+      "condition": "cloudy",
+      "precip": 0,
+      "snow": 0
+    },
+    {
+      "date": "2026-11-16",
+      "min": 5,
+      "max": 10,
+      "condition": "cloudy",
+      "precip": 0,
+      "snow": 0
+    }
+  ],
+  "sources": ["open-meteo"]
+}
