@@ -27,8 +27,9 @@ $ weather say --tomorrow
 | Late evening | From 21:00 local a "now" answer also carries tomorrow. `--tomorrow` asks for it any time.                                                                                                                                                                                                                        |
 | Insight      | One line about the coming days, only if something changes: warming/cooling (≥ 5° against today/tomorrow), first snow, rain onset/end, first frost, heat. A quiet week says nothing.                                                                                                                              |
 | Advice       | `--umbrella` («Да, вечером будет дождь.»), `--dress` («Прохладно: тёплая куртка и шарф.»), plus a short umbrella hint in a rainy "now" answer.                                                                                                                                                                   |
+| Rain right now | One decision for every answer (`now`, next hour, `--umbrella`, `--dress`): an **observed precipitating condition** (Home Assistant) beats a smaller model amount; otherwise the hour's amount decides (≥ 0.2 mm). `weather explain` names the source that decided («precipitation now: wet (condition, home-assistant: rain, 0 mm)»). |
 
-Every threshold lives in [`src/thresholds.ts`](src/thresholds.ts) and is overridable. A voice answer
+Every threshold lives in [`weather_cli/thresholds.py`](weather_cli/thresholds.py) and is overridable. A voice answer
 is a headline plus at most two more sentences; extra findings compete by weight and the losers are
 reported by `weather explain`.
 
@@ -78,11 +79,12 @@ mode now · data as of 2026-11-09 01:28 (home-assistant+open-meteo)
 
 ## Install
 
-Needs [bun](https://bun.sh) ≥ 1.4.
+Needs Python ≥ 3.10 and a system time-zone database (`tzdata`: present on macOS and most Linux; on Alpine or minimal
+container images install it with `apk add tzdata` / `apt install tzdata`; Windows is untested; a `tzdata` wheel is declared for it). No other packages.
 
 ```
 git clone https://github.com/alex-mextner/weather-cli && cd weather-cli
-bun install && ./install.sh          # links ~/.local/bin/weather
+./install.sh                         # links ~/.local/bin/weather
 weather climate update               # once: monthly norms for humidity/temperature (≈ 2.7 MB, seconds)
 ```
 
@@ -107,7 +109,7 @@ echo '{"lat": 44.8, "lon": 20.4, "tz": "Europe/Belgrade"}' > ~/.config/weather-c
 - Both run concurrently under one hard deadline (`--timeout`, default **1200 ms**). A fresh cache
   (10 min) answers without network; if every provider fails the last cached data (up to 12 h)
   answers, with a warning on stderr — a voice assistant never waits and never goes silent.
-- Place: `--lat --lon [--tz]`, `WEATHER_LAT/LON/TZ`, `~/.config/weather-cli/config.json`
+- Place: `--lat --lon [--tz]` (negative numbers need the `=` form: `--lon=-74`), `WEATHER_LAT/LON/TZ`, `~/.config/weather-cli/config.json`
   (`{"lat":…,"lon":…,"tz":"Europe/Belgrade"}`), or Home Assistant's home zone.
 
 ## CLI
@@ -122,32 +124,45 @@ weather climate update|show         monthly norms for the place
 
 ## Library
 
-```ts
-import { FileStore, getWeather, loadClimate, say } from 'weather-cli';
+```python
+import time
 
-const place = { lat: 44.8, lon: 20.48, tz: 'Europe/Belgrade' };
-const store = new FileStore('/var/cache/weather');
-const { bundle } = await getWeather({ place, store, ha: { url, token } });
-const report = say({
-  bundle,
-  now: Date.now(),
-  mode: 'now',
-  climate: await loadClimate(store, place),
-});
-report.text; // «На улице 7 градусов, пасмурно. Скоро начнётся дождь.»
-report.decisions; // every decision with `fired` and `why`
+from weather_cli import FileStore, HaConnection, Place, get_weather, load_climate, say
+
+place = Place(lat=44.8, lon=20.48, tz="Europe/Belgrade")
+# Cache files are written owner-only (0600): a host sharing the directory must run as the same user.
+store = FileStore("/var/cache/weather")
+result = get_weather(place=place, store=store, ha=HaConnection(url=url, token=token))
+report = say(
+    bundle=result.bundle,
+    now=int(time.time() * 1000),
+    mode="now",
+    climate=load_climate(store, place),
+)
+report.text  # «На улице 7 градусов, пасмурно. Скоро начнётся дождь.»
+report.decisions  # every decision with `fired` and `why`
 ```
 
-Each decision is also exported (`describeFeels`, `describeHumidity`, `describeWind`,
-`describeLookahead`, `describeTomorrow`, `weekInsights`, …) — pure functions of data and thresholds.
-Hosts that cannot install packages can vendor `src/` (without `src/cli/`) at a release tag: imports are
-extensionless and only `node:` built-ins and global `fetch` are used.
+Each decision is also exported (`describe_feels`, `describe_humidity`, `describe_wind`,
+`describe_lookahead`, `describe_tomorrow`, `week_insights`, …) — pure functions of data and thresholds.
+Network access is injectable: pass `fetch_impl=` (a callable `(url, HttpInit) -> response` with `ok`,
+`status` and `text()`) to `get_weather()` and the provider functions; tests never touch the network.
+
+Hosts that cannot install packages can vendor the `weather_cli` package at a release tag, minus
+`weather_cli/cli`: it needs only the Python ≥ 3.10 standard library, plus a system tz database (or
+the `tzdata` wheel). The package must stay importable as top-level `weather_cli` (its modules use
+absolute `weather_cli.…` imports in places).
+
+The Home Assistant token is sent only to the origin you configure: a redirect to another origin, or
+from `http` to `https` on the same host, drops the `Authorization` header (so use an `https://` URL).
 
 ## Development
 
 ```
-bun install
-bun run check     # oxlint, oxfmt --check, tsc --noEmit, bun test
+python -m pip install -e '.[test]'
+python -m pytest          # unit, CLI and parity tests
+ruff check && ruff format --check
+rig lint check            # maintainers only (local tool, not in CI): cognitive ≤ 15, cyclomatic ≤ 20, file size
 ```
 
 Tests are table-driven per decision (norm vs off-norm, the 5°/6° feels-like boundary, wind

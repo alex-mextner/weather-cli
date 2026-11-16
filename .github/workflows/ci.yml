@@ -13,17 +13,37 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-python@v5
         with:
-          bun-version-file: .bun-version
-      - run: bun install --frozen-lockfile
-      - run: bun run lint
-      - run: bun run format:check
-      - run: bun run typecheck
-      - run: bun run test
+          python-version: ${{ matrix.python-version }}
+      # Before any pip step: the documented install (./install.sh) uses nothing but the stdlib,
+      # so this is the only place a wrapper path bug cannot hide behind an installed package.
       - name: CLI starts on a bare runner
         run: |
           bin/weather --help
           bin/weather --version
+      - name: install.sh links a working wrapper
+        run: |
+          HOME="$RUNNER_TEMP/h" ./install.sh
+          "$RUNNER_TEMP/h/.local/bin/weather" --version
+      - run: python -m pip install -e ".[test]"
+      - name: Lint (one Python version is enough)
+        if: matrix.python-version == '3.12'
+        run: |
+          ruff check
+          ruff format --check
+      - run: python -m pytest -q
+      - name: Wheel builds, installs and runs
+        run: |
+          python -m pip wheel . --no-deps -w dist
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install dist/*.whl
+          "$RUNNER_TEMP/venv/bin/weather" --version
+      # `rig lint check` (complexity gate in AGENTS.md) is a local tool and is not installed on
+      # GitHub runners, so it stays a pre-commit/local step.

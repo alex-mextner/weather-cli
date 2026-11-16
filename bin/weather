@@ -7,4 +7,16 @@ while [ -L "$SOURCE" ]; do
   [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
 done
 ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
-exec bun "$ROOT/src/cli/main.ts" "$@"
+# A wrapper run without its weather_cli/ package (half-deleted checkout) must fail here, never
+# fall back to a weather_cli in the current directory.
+[ -f "$ROOT/weather_cli/__init__.py" ] \
+  || { echo "weather: cannot find weather_cli next to $SOURCE" >&2; exit 1; }
+# -c puts the working directory first on sys.path; make the checkout the only first entry so
+# neither a stray ./json.py nor the current directory can shadow the package.
+exec python3 -c 'import sys
+if sys.version_info < (3, 10):
+    sys.exit("weather: python3 >= 3.10 is required (found " + sys.version.split()[0] + ")")
+root = sys.argv.pop(1)
+sys.path[:] = [root] + [p for p in sys.path if p not in ("", ".")]
+from weather_cli.__main__ import main
+sys.exit(main())' "$ROOT" "$@"

@@ -1,4 +1,3 @@
-node_modules/
 .claude/
 .codex/
 .haft/
@@ -7,3 +6,11 @@ node_modules/
 coverage/
 .DS_Store
 .worktrees/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+node_modules/
+dist/
+build/
+.venv/
