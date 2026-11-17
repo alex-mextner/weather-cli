@@ -17,6 +17,7 @@ from weather_cli.conditions import PrecipNow, WetKind, current_precipitation, is
 from weather_cli.decisions.daily import days_from
 from weather_cli.decisions.temperature import feels_like
 from weather_cli.decisions.wind import WindLevel, wind_level, wind_level_rank
+from weather_cli.horizon import hours_ahead
 from weather_cli.local_time import local_parts
 from weather_cli.providers.json import js_number
 from weather_cli.ru import capitalize, day_part_on, degrees, signed
@@ -25,7 +26,6 @@ from weather_cli.types import Bundle, Decision, Moment
 from weather_cli.units import js_round, spoken
 
 _MINUTE = 60_000
-_HORIZON_HOURS = 12
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,8 +42,8 @@ class _Outlook:
     end_hour: int | None
     # The wind that would meet the umbrella (now, or at the first wet hour).
     wind: WindLevel
-    # The forecast request failed and no hours are left: "dry" and "won't stop" would be claims
-    # from missing data.
+    # No forecast hour covers the horizon (the request failed, answered empty, or the bundle is
+    # so old its hours have passed): "dry" and "won't stop" would be claims from missing data.
     no_forecast: bool = False
 
 
@@ -69,8 +69,7 @@ def _starts_in(wet_now: bool, first_wet: Moment | None, now: float) -> int | Non
 
 def _outlook(bundle: Bundle, now: float, thresholds: Thresholds) -> _Outlook:
     tz = bundle.place.tz
-    horizon = now + _HORIZON_HOURS * 60 * _MINUTE
-    hours = [m for m in bundle.hourly if now - 30 * _MINUTE < m.time <= horizon]
+    hours = hours_ahead(bundle.hourly, now)
     precipitation = current_precipitation(bundle)
     wet_now = precipitation.wet
     first_wet = next((m for m in hours if is_wet(m)), None)
@@ -90,7 +89,7 @@ def _outlook(bundle: Bundle, now: float, thresholds: Thresholds) -> _Outlook:
         ends_in_minutes=None if clears is None else js_round((clears.time - now) / _MINUTE),
         end_hour=None if clears is None else local_parts(clears.time, tz).hour,
         wind=wind_level(meets.wind, meets.gust, thresholds),
-        no_forecast=bundle.forecast_missing and not bundle.hourly,
+        no_forecast=not hours,
     )
 
 

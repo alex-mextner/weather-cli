@@ -139,8 +139,9 @@ def get_weather(
         return _offline_answer(cached, moment, max_stale_ms, errors)
 
     bundle = merge_bundles(primary, secondary, moment)
-    if primary is not None and primary.forecast_missing:
-        errors.append("home-assistant: forecast unavailable")
+    errors.extend(
+        f"{name}: forecast unavailable" for name, b in bundles.items() if b.forecast_missing
+    )
     _remember(store, key, bundle)
     return WeatherResult(bundle, "live", errors)
 

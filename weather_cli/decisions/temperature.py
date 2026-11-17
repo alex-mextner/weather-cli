@@ -9,7 +9,7 @@ fires.
 
 from __future__ import annotations
 
-from weather_cli.conditions import PrecipNow, precip_kind_of
+from weather_cli.conditions import PrecipNow, WetKind, precip_kind_of, wet_kind
 from weather_cli.providers.json import js_number
 from weather_cli.ru import degrees, signed, to_fixed
 from weather_cli.thresholds import Thresholds
@@ -92,12 +92,28 @@ def _rain_phrase(mm: float) -> str:
     return "небольшой дождь" if 0 < mm < 1 else "идёт дождь"
 
 
-def _sky_phrase(current: Moment) -> str:
+def _falling_phrase(kind: WetKind, mm: float) -> str:
+    if kind == "rain":
+        return _rain_phrase(mm)
+    if kind == "snow":
+        return "идёт сильный снег" if mm >= 2 else "идёт снег"
+    return "мокрый снег"
+
+
+def _sky_phrase(current: Moment, precipitation: PrecipNow | None) -> str:
+    """The sky as the precipitation decision sees it, so the headline never contradicts the
+    umbrella answer: a wet decision with a dry-sounding code (cloudy, 0.6 mm) says what falls;
+    a precipitating code the decision rejected says only that it is overcast."""
     mm = current.precip or 0
+    observed = precip_kind_of(current.condition)
+    if precipitation is not None and precipitation.wet and observed == "none":
+        return _falling_phrase(precipitation.kind or wet_kind(current), mm)
+    if precipitation is not None and not precipitation.wet and observed != "none":
+        return _SKY["cloudy"]
     if current.condition == "rain":
         return _rain_phrase(mm)
     if current.condition == "snow":
-        return "идёт сильный снег" if mm >= 2 else "идёт снег"
+        return _falling_phrase("snow", mm)
     return _SKY[current.condition]
 
 
@@ -107,7 +123,7 @@ def describe_sky(current: Moment, precipitation: PrecipNow | None = None) -> Dec
     return Decision(
         id="sky",
         fired=True,
-        phrase=_sky_phrase(current),
+        phrase=_sky_phrase(current, precipitation),
         weight=90,
         why=f"{why}; {note}" if note else why,
     )

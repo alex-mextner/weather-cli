@@ -43,6 +43,9 @@ rig lint check                   # maintainer-only local gate (not in CI): ≤ 1
 - **Silence is a decision.** Feels-like needs a ≥ 6° gap (on whole spoken degrees), humidity needs
   a notable deviation from the month/hour norm, wind needs a real category. Each decision records
   `why` even when silent — `weather explain` prints it.
+- **Unknown is not dry.** A forecast with no hour in the next 12 h (empty answer, expired hours,
+  failed request) is `forecast_missing`: the umbrella says «прогноза … нет», never «дождя не
+  ожидается»; such a bundle is not cached. `weather_cli/horizon.py` is the one definition.
 - **Voice never waits.** Every request has a hard timeout (default 1.2 s) and `get_weather()` stops
   waiting for providers at that deadline; a fresh cache hit does no network; all providers failing
   falls back to the last cached bundle. The climate archive (2.7 MB) is never fetched on the answer

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from ..local_time import local_parts
 from ..providers.json import JsonRecord, dumps
+from ..ru import sentence
 from ..types import Decision, Report
 from .config import VERSION
 
@@ -34,14 +35,17 @@ def format_time(ms: float, tz: str) -> str:
     return f"{p.year}-{p.month:02d}-{p.day:02d} {p.hour:02d}:{p.minute:02d}"
 
 
-def _mark(decision: Decision, dropped: list[str]) -> str:
+def _mark(decision: Decision, report: Report) -> str:
     if not decision.fired:
         return "·"
-    return "✂" if decision.id in dropped else "✔"
+    # `dropped` names decision ids, and a mode may run one id several times (the week's
+    # insights): only a phrase that is not among the spoken sentences was really cut.
+    cut = decision.id in report.dropped and sentence(decision.phrase or "") not in report.sentences
+    return "✂" if cut else "✔"
 
 
-def _decision_lines(decision: Decision, dropped: list[str]) -> list[str]:
-    mark = _mark(decision, dropped)
+def _decision_lines(decision: Decision, report: Report) -> list[str]:
+    mark = _mark(decision, report)
     said = f"«{decision.phrase}»" if decision.fired and decision.phrase else "silent"
     return [f"{mark} {decision.id.ljust(13)} {said}", f"    {decision.why}"]
 
@@ -54,7 +58,7 @@ def render_explain(report: Report, tz: str) -> str:
         "",
     ]
     for decision in report.decisions:
-        lines.extend(_decision_lines(decision, list(report.dropped)))
+        lines.extend(_decision_lines(decision, report))
     lines.extend(["", f"→ {report.text}"])
     if report.dropped:
         lines.append(f"  (✂ fired but over the sentence budget: {', '.join(report.dropped)})")

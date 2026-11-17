@@ -17,6 +17,7 @@ from dataclasses import dataclass, replace
 from typing import cast
 
 from ..conditions import condition_from_home_assistant
+from ..horizon import hours_ahead
 from ..local_time import local_date
 from ..types import Bundle, Condition, Day, Moment, Place
 from ..units import fahrenheit_to_celsius, kmh_to_ms, knots_to_ms, mph_to_ms, parse_iso_ms
@@ -196,6 +197,7 @@ def parse_home_assistant(
         daily=daily,
         sources=["home-assistant"],
         current_source="home-assistant",
+        forecast_missing=not hours_ahead(hourly, fetched_at),
     )
 
 

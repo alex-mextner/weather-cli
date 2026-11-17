@@ -178,3 +178,48 @@ def test_dress_never_repeats_a_sentence(seed: int) -> None:
         parts = re.findall(r"[^.]+\.", describe_dress(b, NOW, T).phrase or "")
         stripped = [p.strip() for p in parts]
         assert len(stripped) == len(set(stripped))
+
+
+@pytest.mark.parametrize(
+    ("condition", "temp", "precip", "sky"),
+    [
+        ("cloudy", 8, 0.6, "небольшой дождь"),
+        ("cloudy", 8, 2, "идёт дождь"),
+        ("clear", 8, 5, "сильный дождь"),
+        ("fog", 8, 1.5, "идёт дождь"),
+        ("partly-cloudy", -3, 0.6, "идёт снег"),
+        ("cloudy", -3, 2.5, "идёт сильный снег"),
+        ("cloudy", 1, 0.6, "мокрый снег"),
+    ],
+)
+def test_the_sky_follows_the_decision_when_the_amount_says_wet(
+    condition: str, temp: float, precip: float, sky: str
+) -> None:
+    b = bundle(now=NOW, current={"condition": condition, "precip": precip, "temp": temp})
+    headline = say(bundle=b, now=NOW).sentences[0]
+    assert headline.endswith(f"{sky}.")
+    assert _first_clause_says_falling(say(bundle=b, now=NOW, mode="umbrella").text)
+
+
+def test_the_sky_does_not_claim_rain_the_umbrella_denies() -> None:
+    # An observed rain code with a real model amount but a tiny probability: `is_wet` says dry.
+    b = bundle(now=NOW, current={"condition": "rain", "precip": 0.5, "precip_prob": 10})
+    assert not current_precipitation(b).wet
+    headline = say(bundle=b, now=NOW).sentences[0]
+    assert not RAIN_WORDS.search(headline)
+    assert say(bundle=b, now=NOW, mode="umbrella").text == "Нет, дождя не ожидается."
+
+
+def test_property_amount_decides_for_any_condition_1500_worlds() -> None:
+    random = rng(20261117)
+    for _ in range(1500):
+        cond = CONDITIONS[int(random() * len(CONDITIONS))]
+        precip = random() * 6 if random() < 0.5 else 0.0
+        current: dict[str, Any] = {"condition": cond, "precip": precip, "temp": random() * 20 - 5}
+        b = replace(
+            bundle(now=NOW, current=current, hour=lambda _i, _s, c=current: {"temp": c["temp"]}),
+            current_source="open-meteo",
+        )
+        headline = say(bundle=b, now=NOW).sentences[0]
+        umbrella = say(bundle=b, now=NOW, mode="umbrella").text
+        assert bool(RAIN_WORDS.search(headline)) == _first_clause_says_falling(umbrella)

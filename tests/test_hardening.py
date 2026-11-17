@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import socket
 import threading
 import time
 import traceback
@@ -52,6 +53,10 @@ class Origin:
                 outer.seen.append({k.lower(): v for k, v in self.headers.items()})
                 answer(self)
 
+            def do_POST(self) -> None:
+                self.rfile.read(int(self.headers.get("content-length", 0)))
+                self.do_GET()
+
             def log_message(self, *_args) -> None:
                 return
 
@@ -95,7 +100,7 @@ def origins(monkeypatch):
     monkeypatch.setattr(
         pjson,
         "_OPENER",
-        urllib.request.build_opener(urllib.request.ProxyHandler({}), pjson._SafeRedirects),
+        pjson._build_opener(urllib.request.ProxyHandler({})),
     )
     made: list[Origin] = []
 
@@ -198,6 +203,223 @@ class TestSlowDrip:
             request_json("open-meteo", f"{home.url}/api", timeout_ms=400)
         # Each byte arrives well inside the socket timeout: only the wall-clock deadline stops it.
         assert time.monotonic() - started < 5
+
+
+class TestRedirectBodies:
+    """The size cap and the wall-clock deadline hold for the body of a redirect answer too:
+    `urllib` swallows it before following, unbounded, unless the handler reads it first."""
+
+    @staticmethod
+    def redirect_with_body(target: str, body: bytes):
+        def answer(handler: BaseHTTPRequestHandler) -> None:
+            handler.send_response(302)
+            handler.send_header("location", target)
+            handler.send_header("content-length", str(len(body)))
+            handler.end_headers()
+            handler.wfile.write(body)
+
+        return answer
+
+    def test_a_redirect_body_beyond_the_cap_is_an_error(self, origins, monkeypatch):
+        monkeypatch.setattr(pjson, "MAX_RESPONSE_BYTES", 50)
+        elsewhere = origins(ok)
+        home = origins(self.redirect_with_body(f"{elsewhere.url}/x", b"x" * 500))
+        with pytest.raises(ProviderError, match="response too large"):
+            request_json("open-meteo", f"{home.url}/api", timeout_ms=5000)
+        assert elsewhere.seen == []
+
+    def test_the_cap_is_shared_by_every_hop_of_a_chain(self, origins, monkeypatch):
+        monkeypatch.setattr(pjson, "MAX_RESPONSE_BYTES", 100)
+        holder: dict[str, Origin] = {}
+
+        def answer(handler: BaseHTTPRequestHandler) -> None:
+            hop = int(handler.path.strip("/") or 0)
+            if hop < 5:
+                self.redirect_with_body(f"{holder['o'].url}/{hop + 1}", b"x" * 30)(handler)
+            else:
+                ok(handler)
+
+        holder["o"] = origins(answer)
+        with pytest.raises(ProviderError, match="response too large"):
+            request_json("open-meteo", f"{holder['o'].url}/0", timeout_ms=5000)
+
+    def test_a_redirect_body_within_the_cap_is_followed(self, origins):
+        elsewhere = origins(ok)
+        home = origins(self.redirect_with_body(f"{elsewhere.url}/x", b"moved"))
+        assert request_json("open-meteo", f"{home.url}/api", timeout_ms=5000) == {"ok": True}
+
+    def test_a_peer_dripping_a_redirect_body_is_cut_at_the_deadline(self, origins):
+        elsewhere = origins(ok)
+
+        def drip(handler: BaseHTTPRequestHandler) -> None:
+            handler.send_response(302)
+            handler.send_header("location", f"{elsewhere.url}/x")
+            handler.send_header("content-length", "1000")
+            handler.end_headers()
+            try:
+                for _ in range(200):
+                    handler.wfile.write(b" ")
+                    handler.wfile.flush()
+                    time.sleep(0.05)
+            except OSError:
+                pass
+
+        home = origins(drip)
+        started = time.monotonic()
+        with pytest.raises(ProviderError, match=r"request failed \(timeout\)"):
+            request_json("open-meteo", f"{home.url}/api", timeout_ms=400)
+        assert time.monotonic() - started < 5
+        assert elsewhere.seen == []
+
+    @staticmethod
+    def spying_opener(monkeypatch):
+        """Records every redirect answer the handler is given, to see what became of it."""
+        seen: list = []
+
+        class Spy(pjson._SafeRedirects):
+            def redirect_request(self, req, fp, *rest):
+                seen.append(fp)
+                return super().redirect_request(req, fp, *rest)
+
+        opener = pjson._build_opener(urllib.request.ProxyHandler({}), redirects=Spy())
+        monkeypatch.setattr(pjson, "_OPENER", opener)
+        return seen
+
+    @pytest.mark.parametrize("code", [307, 308])
+    @pytest.mark.parametrize("body_kind", ["stalled", "oversized"])
+    def test_a_post_that_cannot_be_replayed_answers_its_status_without_draining_the_body(
+        self, origins, monkeypatch, code, body_kind
+    ):
+        monkeypatch.setattr(pjson, "MAX_RESPONSE_BYTES", 50)
+        seen = self.spying_opener(monkeypatch)
+        elsewhere = origins(ok)
+
+        def refuse(handler: BaseHTTPRequestHandler) -> None:
+            handler.send_response(code)
+            handler.send_header("location", f"{elsewhere.url}/x")
+            handler.send_header("content-length", "200000")
+            handler.end_headers()
+            if body_kind == "oversized":
+                handler.wfile.write(b"x" * 200_000)
+            else:
+                time.sleep(2)
+
+        home = origins(refuse)
+        started = time.monotonic()
+        with pytest.raises(ProviderError, match=f"HTTP {code}"):
+            request_json("home-assistant", f"{home.url}/api", timeout_ms=1500, body={"a": 1})
+        assert time.monotonic() - started < 1
+        assert elsewhere.seen == []
+        # Python 3.10 has no 308 handler: the answer never reaches the redirect handler there.
+        if hasattr(urllib.request.HTTPRedirectHandler, "http_error_308") or code == 307:
+            assert [fp.isclosed() for fp in seen] == [True]
+
+    def test_a_redirect_answer_over_the_cap_is_closed_not_left_to_the_collector(
+        self, origins, monkeypatch
+    ):
+        monkeypatch.setattr(pjson, "MAX_RESPONSE_BYTES", 50)
+        seen = self.spying_opener(monkeypatch)
+        elsewhere = origins(ok)
+        # More than one read's worth, so the answer is still open when the cap is hit.
+        home = origins(self.redirect_with_body(f"{elsewhere.url}/x", b"x" * 200_000))
+        with pytest.raises(ProviderError, match="response too large"):
+            request_json("open-meteo", f"{home.url}/api", timeout_ms=5000)
+        assert [fp.isclosed() for fp in seen] == [True]
+
+    def test_a_redirect_answer_cut_at_the_deadline_is_closed(self, origins, monkeypatch):
+        seen = self.spying_opener(monkeypatch)
+        elsewhere = origins(ok)
+
+        def drip(handler: BaseHTTPRequestHandler) -> None:
+            handler.send_response(302)
+            handler.send_header("location", f"{elsewhere.url}/x")
+            handler.send_header("content-length", "1000")
+            handler.end_headers()
+            try:
+                for _ in range(40):
+                    handler.wfile.write(b" ")
+                    handler.wfile.flush()
+                    time.sleep(0.05)
+            except OSError:
+                pass
+
+        home = origins(drip)
+        with pytest.raises(ProviderError, match=r"request failed \(timeout\)"):
+            request_json("open-meteo", f"{home.url}/api", timeout_ms=300)
+        assert [fp.isclosed() for fp in seen] == [True]
+
+    def test_a_redirect_that_ends_after_the_deadline_is_not_followed(self, origins):
+        elsewhere = origins(ok)
+
+        def late_end(handler: BaseHTTPRequestHandler) -> None:
+            handler.send_response(302)
+            handler.send_header("location", f"{elsewhere.url}/x")
+            handler.send_header("content-length", "2")
+            handler.end_headers()
+            time.sleep(0.25)
+            handler.wfile.write(b"x")
+            handler.wfile.flush()
+            time.sleep(0.25)  # the connection ends after the 400 ms deadline, a byte short
+
+        home = origins(late_end)
+        with pytest.raises(ProviderError, match=r"request failed \(timeout\)"):
+            request_json("open-meteo", f"{home.url}/api", timeout_ms=400)
+        assert elsewhere.seen == []
+
+    @staticmethod
+    def chunked_trailer_drip(status: int, location: str | None):
+        """A chunked answer whose terminating chunk is followed by endless trailer lines: every
+        line arrives inside the socket timeout, and `http.client` never returns to its caller."""
+
+        def answer(handler: BaseHTTPRequestHandler) -> None:
+            handler.send_response(status)
+            if location is not None:
+                handler.send_header("location", location)
+            handler.send_header("transfer-encoding", "chunked")
+            handler.end_headers()
+            try:
+                handler.wfile.write(b"0\r\n")
+                for _ in range(200):
+                    handler.wfile.write(b"x-t: 1\r\n")
+                    handler.wfile.flush()
+                    time.sleep(0.05)
+            except OSError:
+                pass
+
+        return answer
+
+    def test_a_chunked_redirect_dripping_trailers_is_cut_at_the_deadline(self, origins):
+        elsewhere = origins(ok)
+        home = origins(self.chunked_trailer_drip(302, f"{elsewhere.url}/x"))
+        started = time.monotonic()
+        with pytest.raises(ProviderError, match=r"request failed \(timeout\)"):
+            request_json("open-meteo", f"{home.url}/api", timeout_ms=400)
+        assert time.monotonic() - started < 3
+        assert elsewhere.seen == []
+
+    def test_a_chunked_final_answer_dripping_trailers_is_cut_at_the_deadline(self, origins):
+        home = origins(self.chunked_trailer_drip(200, None))
+        started = time.monotonic()
+        with pytest.raises(ProviderError, match=r"request failed \(timeout\)"):
+            request_json("open-meteo", f"{home.url}/api", timeout_ms=400)
+        assert time.monotonic() - started < 3
+
+    def test_the_deadline_spans_the_whole_redirect_chain(self, origins):
+        holder: dict[str, Origin] = {}
+
+        def answer(handler: BaseHTTPRequestHandler) -> None:
+            hop = int(handler.path.strip("/") or 0)
+            if hop < 6:
+                time.sleep(0.15)
+                self.redirect_with_body(f"{holder['o'].url}/{hop + 1}", b"")(handler)
+            else:
+                ok(handler)
+
+        holder["o"] = origins(answer)
+        started = time.monotonic()
+        with pytest.raises(ProviderError, match=r"request failed \((timeout|timed out)\)"):
+            request_json("open-meteo", f"{holder['o'].url}/0", timeout_ms=400)
+        assert time.monotonic() - started < 3
 
 
 class TestTokenStaysOutOfMessages:
@@ -907,5 +1129,28 @@ def test_the_cache_is_not_stamped_by_a_made_up_clock(tmp_path, scrubbed_env, cap
     assert cli_main.main(["say", *place, "--at", "2099-01-01T12:00:00+01:00"]) == 0
     assert not (tmp_path / "cache").exists() or list((tmp_path / "cache").iterdir()) == []
     capsys.readouterr()
+    # The canned forecast is from `NOW`: on the real clock its hours have long passed, and a
+    # bundle with no usable hour is rightly never cached.
+    scrubbed_env.setattr(time, "time", lambda: NOW / 1000)
     assert cli_main.main(["say", *place]) == 0
     assert list(Path(tmp_path / "cache").glob("bundle-*.json")) != []
+
+
+class TestHangUp:
+    def test_a_tls_socket_is_cut_at_the_tcp_layer_not_through_its_own_shutdown(self):
+        """`ssl.SSLSocket.shutdown` removes the TLS layer before it shuts TCP down, so a thread
+        writing in between would send its plaintext. The watchdog must use the plain call."""
+        left, right = socket.socketpair()
+
+        class LikeSslSocket(socket.socket):
+            def shutdown(self, how: int) -> None:
+                raise AssertionError("the overridable shutdown must not be used")
+
+        wrapped = LikeSslSocket(fileno=left.detach())
+        try:
+            pjson._hang_up(wrapped)
+            right.settimeout(2)
+            assert right.recv(1) == b""
+        finally:
+            wrapped.close()
+            right.close()

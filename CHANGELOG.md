@@ -59,6 +59,22 @@
   is run without its `weather_cli/` package.
 - Response bodies are read in chunks under the same wall-clock deadline as the request (a peer
   dripping bytes ends in `request failed (timeout)`), as well as the 8 MiB cap.
+  The cap and the deadline cover a redirect answer's body too and are shared by every hop of one
+  request (`urllib` used to swallow that body unbounded before following).
+  At the deadline the connections themselves are shut down, so a peer that drips chunk framing or
+  trailers (where `http.client` never hands control back) ends in `request failed (timeout)` too.
+- A forecast that arrives empty is unknown, never "nothing coming": a provider answering with no
+  hourly forecast (Home Assistant or Open-Meteo), and a bundle whose hours have all passed, make
+  `--umbrella` say «Сейчас без дождя, но прогноза на ближайшие часы нет.» / «…когда закончится,
+  неизвестно» instead of «Нет, дождя не ожидается.» / «и скоро не закончится». Such a bundle is
+  reported as `<provider>: forecast unavailable` and not cached. Home Assistant's hours lead only while
+  at least 6 of them still lie ahead; otherwise Open-Meteo's are used, and a short Home Assistant
+  forecast is kept when Open-Meteo has none. 72 recorded umbrella parity cases (stale bundles) now expect that wording.
+- The "now" headline's sky follows the same precipitation decision as the umbrella answer: a wet
+  amount under a dry-sounding code («пасмурно», 0.6 mm) says what falls, and a precipitating code
+  the decision rejected says «пасмурно».
+- `weather explain --week` marks a decision cut (✂) only when its sentence was left out; the oracle
+  marked every insight cut as soon as any was (48 recorded library cases and one CLI case differ in those marks only).
 - `TZ` is used as the local zone only if it names a zone the machine has (`UTC0`, `:/etc/localtime`
   fall through to `/etc/localtime`, then UTC). Surrounding whitespace is stripped from blank-checked
   settings. An argument that is not valid UTF-8 is reported escaped on stderr, not as a traceback.

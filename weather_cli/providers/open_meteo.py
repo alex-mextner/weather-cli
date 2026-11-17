@@ -15,6 +15,7 @@ import time
 from collections.abc import Sequence
 
 from ..conditions import WET_MM, condition_from_wmo
+from ..horizon import hours_ahead
 from ..local_time import local_date
 from ..types import Bundle, Day, Moment, Place
 from ..units import is_plausible_instant
@@ -208,6 +209,7 @@ def parse_open_meteo(json: JsonValue, place: Place, fetched_at: float) -> Bundle
         daily=days,
         sources=["open-meteo"],
         current_source="open-meteo",
+        forecast_missing=not hours_ahead(hours, fetched_at),
     )
 
 
