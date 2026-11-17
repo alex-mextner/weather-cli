@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "weather-cli"
+version = "0.2.0"
+description = "Weather in human Russian: decision functions that turn raw forecast data into short spoken phrases, plus a CLI."
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+# zoneinfo reads the OS tz database. Windows has none; the wheel is declared for it, but Windows
+# is not tested.
+dependencies = ["tzdata; sys_platform == 'win32'"]
+
+[project.optional-dependencies]
+# One place for the toolchain versions: CI and the README both install `.[test]`.
+test = ["pytest==8.4.2", "ruff==0.16.10"]
+
+[project.urls]
+Repository = "https://github.com/alex-mextner/weather-cli"
+
+[project.scripts]
+weather = "weather_cli.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["weather_cli*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C90"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20
