@@ -1,0 +1,50 @@
+# PR check: fail while the current metadata contains unresolved review threads.
+# Keep GitHub's native "Require conversation resolution before merging" rule enabled:
+# this check is a snapshot, while the native rule enforces live state between runs.
+#
+# INSTALL: copy to .github/workflows/review-threads.yml with both helpers under
+# ci/review-threads/. Land these trusted sources before requiring the check.
+#
+# TRUST (GitHub.com): pull_request_target selects trusted workflow YAML. Checkout
+# github.sha, the trusted default-branch event commit, so a rerun uses the same code.
+# Read the PR number as data; never execute PR-head or merge-ref code here.
+# Review/comment events and manual dispatch have different source/ref contracts
+# and are deliberately excluded. See README.md for the event and refresh details.
+#
+# REFRESH: after resolving threads, rerun the latest trusted pull_request_target
+# run for the current PR head. It queries live metadata without a new code commit.
+# A real PR metadata edit also triggers a fresh run. Running gh ship alone does
+# not rerun a failed check; native conversation resolution remains required.
+
+name: review-threads
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  # Coalesce only runs for the same PR head. An old-head rerun cannot cancel a
+  # newer head's check. head.sha is grouping metadata, never a checkout source.
+  group: review-threads-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+jobs:
+  review-threads:
+    name: review-threads
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the trusted event commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Fail on unresolved review threads
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: bash ci/review-threads/review-threads.sh

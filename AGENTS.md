@@ -66,5 +66,7 @@ rig lint check                   # maintainer-only local gate (not in CI): ≤ 1
 ## Releasing
 
 Bump `version` in `pyproject.toml` and `VERSION` in `weather_cli/cli/config.py` (a test keeps
-them equal; `--version` prints the constant), update `CHANGELOG.md`, tag `vX.Y.Z`,
-`gh release create`. Hosts re-vendor with their own script at the new tag.
+them equal; `--version` prints the constant) and update `CHANGELOG.md` on a branch. Ship the
+change through a reviewed, CI-green pull request with `gh ship`. After the squash merge,
+fetch `main` and tag its merged release commit as `vX.Y.Z`. Push the tag, then run
+`gh release create vX.Y.Z --verify-tag`. Hosts re-vendor with their own script at that tag.
